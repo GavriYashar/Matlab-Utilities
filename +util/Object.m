@@ -19,10 +19,10 @@ classdef Object
 
     [strctSelected, idx] = util.Object.selectByPropRegexp(strct, "A", "\d")
         strctSelected = 
-            3×1 struct array with fields:
+            3Ã—1 struct array with fields:
             A
         idx =
-            7×1 logical array
+            7Ã—1 logical array
             1
             1
             0
@@ -33,10 +33,10 @@ classdef Object
     
     [strctSelected, idx] = util.Object.selectByPropStrcmpi(strct, "A", "struct")
         strctSelected = 
-            2×1 struct array with fields:
+            2Ã—1 struct array with fields:
             A
         idx =
-            7×1 logical array
+            7Ã—1 logical array
             0
             0
             1
@@ -131,10 +131,21 @@ methods (Static)
         if nargin < 4; inverse = []; end
         [selected, idx] = util.Object.selectByProp(objs, propertyAccessor, @(x) isequal(x, comperator), inverse);
     end
-    function [selected, idx] = selectByPropIsMember(objs, propertyAccessor, comperator, inverse)
-        narginchk(3,4)
+    function [selected, idx] = selectByPropIsMember(objs, propertyAccessor, comperator, inverse, stable)
+        narginchk(3,5)
         if nargin < 4; inverse = []; end
+        if nargin < 5; stable = true; end
         [selected, idx] = util.Object.selectByProp(objs, propertyAccessor, @(x) ismember(x, comperator), inverse);
+        
+        if stable
+            if isstring(propertyAccessor) || ischar(propertyAccessor)
+                prop = selected.(propertyAccessor);
+            elseif isa(propertyAccessor, 'function_handle')
+                prop = propertyAccessor(selected);
+            end
+            [~,sortIdx] = ismember(comperator,prop);
+            selected = selected(sortIdx);
+        end
     end
     function [selected, idx] = selectByPropIsNaN(objs, propertyAccessor, inverse)
         narginchk(2,3)
@@ -152,6 +163,4 @@ methods (Static)
         [selected, idx] = util.Object.selectByProp(objs, propertyAccessor, @(x) isempty(x), inverse);
     end
 end
-
 end
-
