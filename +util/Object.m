@@ -137,13 +137,14 @@ methods (Static)
         if nargin < 5; stable = true; end
         [selected, idx] = util.Object.selectByProp(objs, propertyAccessor, @(x) ismember(x, comperator), inverse);
         
-        if stable
+        if stable && ~isempty(selected)
             if isstring(propertyAccessor) || ischar(propertyAccessor)
-                prop = selected.(propertyAccessor);
+                prop = arrayfun(@(x) x.(propertyAccessor), selected);
             elseif isa(propertyAccessor, 'function_handle')
-                prop = propertyAccessor(selected);
+                prop = arrayfun(@(x) propertyAccessor(x), selected);
             end
             [~,sortIdx] = ismember(comperator,prop);
+            sortIdx(sortIdx==0) = [];
             selected = selected(sortIdx);
         end
     end
