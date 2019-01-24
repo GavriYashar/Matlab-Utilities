@@ -79,8 +79,11 @@ methods (Static)
     function [selected, idx] = selectByProp(objs, propertyAccessor, comperator, inverse)
         % searches given object array for every given field, returns object that matches criteria
         %             objs ... any object array any dimension (also works with structs)
-        % propertyAccessor ... string: propertyName to access value (must be public accessable
-        %                              methodName to access value (must be public accessable)
+        % propertyAccessor ... string: propertyName to access value
+        %                              methodName to access value
+        %                              must be accessable by util.Object
+        %                               - Access = public
+        %                               - Access = {?util.Object}
         %                      function_handle: function handle to access desired value
         %       comperator ... function_handle to compare the value to
         %          inverse ... boolean to inverse selection (DEFAULT := false)
