@@ -58,7 +58,7 @@ methods (Access = public, Abstract)
         str = regexprep(sprintf("test\thallo!"), "\t", util.Char.RIGHTWARDS_ARROW_TO_BAR.char())
     %}
 end
-%% >|•| Public Methods
+%% >|â€¢| Public Methods
 methods (Access = public) % doc Method Attributes
     function str = char(obj)
         % returns a character representation objects string method
@@ -74,9 +74,18 @@ methods (Access = public) % doc Method Attributes
         % arrays - property
         obj.displayScalarObjetDetailed();
     end
+    
+    function displaySuperClasses(obj)
+        if isstring(obj) || ischar(obj)
+            classString = obj;
+        else
+            classString = class(obj);
+        end
+        StringCustomDisplay.dispSuperClasses(classString);
+    end
 end
 
-%% >|•| protected methods
+%% >|â€¢| protected methods
 methods (Access = protected)
     function propgrp = getPropertyGroups(obj)
         if ~isscalar(obj)
@@ -119,7 +128,7 @@ methods (Access = protected)
     end
 end % protected methods
 
-%% >|•| private methods
+%% >|â€¢| private methods
 methods (Access = protected)
     function displayNonScalarObjectDA(objs, variableName)
         fprintf(objs.getHeaderModified());
@@ -165,12 +174,34 @@ methods (Access = protected)
             % datatip (hovering over variable name in matlab editor) should not display any ahref links
             footerStrModified = regexprep(footerStrModified, "\n$", "");
             detailStr = "matlab:" + variableName + ".displayDetails()";
-            editStr = "matlab:edit('" + class(objs) + "')";
+            classStr = class(objs);
+            editStr = "matlab:edit('" + classStr + "')";
+            docStr = "matlab:doc('" + classStr + "')";
+            supStr = "matlab:StringCustomDisplay.dispSuperClassesStr('" + classStr + "')";
+            supExpr = "<a href=['""]matlab:superclasses[^>]+>Superclasses</a>";
+            supRep = "<a href=""" + supStr + """>Superclasses</a>";
+            footerStrModified = regexprep(footerStrModified, supExpr, supRep);
             footerStrModified = footerStrModified + ", <a href=""" + detailStr + """>show-details</a>";
             footerStrModified = footerStrModified + ", <a href=""" + editStr + """>edit-Class</a>";
+            footerStrModified = footerStrModified + ", <a href=""" + docStr + """>documentation</a>";
             footerStrModified = footerStrModified + newline();
         end
     end
 end % private methods
 
+methods (Static = true)
+    function dispSuperClassesStr(classString)
+        superClasses = string(superclasses(classString));
+        
+        editStr = "matlab:edit('" + superClasses + "')";
+        docStr = "matlab:doc('" + superClasses + "')";
+        details = superClasses.pad("right");
+        details = details ...
+            + "  <a href=""" + editStr + """>edit-Class</a>" ...
+            + "  <a href=""" + docStr + """>documentation</a>";
+        
+        disp("Superclasses for class classString:")
+        disp(details);
+    end
+end
 end
