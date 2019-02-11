@@ -37,6 +37,20 @@ classdef (HandleCompatible) StringCustomDisplay < matlab.mixin.CustomDisplay
             str(ii) = sprintf("%s[min=%g, max=%g, NMess_min=%g, NMess_max=%d]", classStr, objs(ii).min, objs(ii).max, objs(ii).NMess_min, objs(ii).NMess_max);
         end
     end
+
+%% Example of overloading generateDisplayStringForObject
+methods (Access = protected)
+    function strs = generateDisplayStringForObject(objs, variableName, isDatatipinfo)
+        strs = generateDisplayStringForObject@StringCustomDisplay(objs, variableName, isDatatipinfo);
+        if isDatatipinfo
+            % return if string is created for datatip in editor
+            % PREFERENCES > MATLAB > EDITOR/DEBUGGER > "Enable datatips in edit mode"
+            return;
+        end
+        suffix = " <a href=""matlab:myCommand('" + objs.getSomeString() + "')"">Display String</a>";
+        strs = strs + suffix;
+    end
+end
 %}
 
 %% --------------------------------------------------------------------------------------------
