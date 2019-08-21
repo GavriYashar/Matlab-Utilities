@@ -2,7 +2,8 @@ classdef String
 % Class with static methods to work on string arrays or generate string array from other inputs
 %
 %% VERSIONING
-%             Author: Martin Lechner
+%             Author: Martin Lechner, MO RS SC BG EN SSV TD-E
+%           Copyright (C) Siemens Mobility GmbH, 2017 - 2019 All Rights Reserved
 %      Creation date: 2018-12-07
 %             Matlab: 9.5, (R2018b)
 %  Required Products: -
@@ -10,6 +11,9 @@ classdef String
 %% REVISIONS
 % V0.1 | 2017-10-18 | Andreas Justin      | initial creation
 % V0.2 | 2018-12-07 | Martin Lechner      | generateIndexStringForSizeVector and generateIndexString implemented
+% V0.3 | 2019-04-11 | Martin Lechner      | new static method toSizeString
+% V0.4 | 2019-04-26 | Martin Lechner      | new method sizeString, 'toSizeString' renamed to 'sizeStringFromSizeVector'
+% V0.6 | 2019-04-30 | Martin Lechner      | new static method 'inputName'
 %
 % See also
 %
@@ -20,13 +24,19 @@ a = magic(4)
 indStr = util.String.generateIndexString(a)
 indStr = util.String.generateIndexString(a(:))
 
+util.String.sizeString(ones(3,4))
+
 %}
 
 %% --------------------------------------------------------------------------------------------
 
-%% >|�| methods
-%% --|��| static methods public
+%% >|•| methods
+%% --|••| static methods public
 methods (Static = true)
+    function str = to1LineString(str)
+        str = regexprep(str, "\n", util.Char.DOWNWARDS_ARROW_WITH_CORNER_LEFTWARDS.char());
+    end
+    
     function substr = substringIdx(str, idx)
         % returns substring as string
         % e.g.: 
@@ -95,6 +105,38 @@ methods (Static = true)
         end
         n = str2double(str);
         isNum = ~(isempty(n) || isnan(n) || isinf(n) || ~isnumeric(n));
+    end
+    function [isVec, strFixed] = validateNumericIntegerVector(str)
+        % returns $isVec=true if $str is a valid matlab integer vector.
+        %         str ... 1x1 string; e.g.: [1,2,   5:8 9];
+        
+        % sicherstellen, dass nur ziffern, eckige klammern, beistriche und doppelpunkte enthalten sid
+        isVec = isempty(regexp(str, "[^\d,: []]", "once"));
+        strFixed = str;
+        if nargout() == 1 || ~isVec
+            return
+        end
+        %{
+            % Test beispiel
+            strFixed = "[,   1   2,  3  , 4   :   7 8   "
+        %}
+        
+        % beistriche und klammern entfernen
+        strFixed = regexprep(strFixed, ",", " ");
+        strFixed = regexprep(strFixed, "[[]]", "");
+        
+        % multiple leerzeichen durch eines ersetzen
+        strFixed = regexprep(strFixed, "\s+", " ");
+        
+        % leerzeichen am start und am ende ersetzen
+        strFixed = util.String.trimStart(strFixed);
+        strFixed = util.String.trimEnd(strFixed);
+        
+        % richtige doppelpunkt setzung
+        strFixed = regexprep(strFixed, "\s*:\s*", ":");
+        strFixed = regexprep(strFixed, " ", ", ");
+        
+        strFixed = "[" + strFixed + "]";
     end
 
     function booleanString = logicalStr(bool, falseStatement, trueStatement)
@@ -167,6 +209,34 @@ methods (Static = true)
             indexString = "{" + indStr + "}";
         else
             indexString = "(" + indStr + ")";
+        end
+    end
+    function sizeString = sizeString(array)
+        % returns the dimensions string without the rectangular braces (e.g. 3×2) for the given size array (the size will be
+        % determined from the given array).
+        % util.String.sizeStringFromArray(ones(2,3,4)) == "2×3×4"
+        sizeString = util.String.sizeStringFromSizeVector(size(array));
+    end
+    function sizeString = sizeStringFromSizeVector(sizeVec)
+        % returns the dimensions string without the rectangular braces (e.g. 3×2) for the given size vector 'sizeVec'
+        % The input vector must be a size vector which is returned from the Matlab's size function!
+        % (joins the elements of the array with '×')
+        % util.String.toSizeString(size(ones(2,3,4)))
+        sizeString = strjoin(string(sizeVec), "×");
+    end
+    function inputName = inputName(inputName, withSurroundingQuots)
+        % returns the given input name (e.g. of a function or method call) with surrounding quotation marks 'inputName'
+        % The inputname must be provided as scalar char or string as returned from the Matlab function 'inputname'. This
+        % function 'inputname' must be called outside this method to get the correct input name.
+        %   withSurroundingQuots ...  true - returns the input name with surrounding quots 'inputName' (default: true)
+        %                            false - only the name or the default string for empty input is returned
+        % typical usage: firstInputName = util.String.inputName(inputname(1));
+        inputName = string(inputName);
+        if inputName == ""
+            inputName = "input has no name (directly defined)";
+        end
+        if nargin < 2 || withSurroundingQuots
+            inputName = "'" + inputName + "'";
         end
     end
 end     % static methods public
