@@ -66,24 +66,24 @@ toc
 %% Input Validation
 narginchk(2,3)
 if ~isstring(str)
-    util.Error.INVALID_ARGUMENT.throw("str must be a matlab string isa " + class(str));
+    util.Error.INVALID_ARGUMENT.error("str must be a matlab string isa " + class(str));
 elseif isempty(str)
-    util.Error.INVALID_ARGUMENT.throw("str must not be empty");
+    util.Error.INVALID_ARGUMENT.error("str must not be empty");
 end
 if ~isstring(expr)
-    util.Error.INVALID_ARGUMENT.throw("str must be a matlab string isa " + class(expr));
+    util.Error.INVALID_ARGUMENT.error("str must be a matlab string isa " + class(expr));
 elseif isempty(expr)
-    util.Error.INVALID_ARGUMENT.throw("str must not be empty");
+    util.Error.INVALID_ARGUMENT.error("str must not be empty");
 elseif numel(expr) > 1
-    util.Error.INVALID_ARGUMENT.throw("expression can only be scalar");
+    util.Error.INVALID_ARGUMENT.error("expression can only be scalar");
 end
 if nargin < 3 || isempty(ignorecase)
     ignorecase = false;
 end
 if ~(ismember(ignorecase, [true, false]) || ismember(ignorecase, [0,1]))
-    util.Error.INVALID_ARGUMENT.throw("ignorecase must be boolean");
+    util.Error.INVALID_ARGUMENT.error("ignorecase must be boolean");
 elseif numel(ignorecase) > 1
-    util.Error.INVALID_ARGUMENT.throw("ignorecase can only be scalar");
+    util.Error.INVALID_ARGUMENT.error("ignorecase can only be scalar");
 end
 ignorecase = iif(ignorecase, "ignorecase", "matchcase");
 
