@@ -23,6 +23,7 @@ classdef (HandleCompatible) StringCustomDisplay < matlab.mixin.CustomDisplay
 %                                           this mixin isn't shown)
 % V2.1 | 2019-01-10 | Andreas Justin      | no error is thrown on missing string, instead link to edit the string method
 %                                           directly
+% V2.2 | 2019-06-04 | Martin Lechner      | plus operator implemented for strings
 %
 % See also matlab.mixin.CustomDisplay, goodOldSP.messstelle.Klass, ...
 %
@@ -66,7 +67,7 @@ methods (Access = public, Abstract)
     % For example if the object contains properties with multiline string, consider replacing "\n" using the line shown below
     %{
         % newline; \n
-        str = regexprep("test" + newline() + "hallo!", "\n", util.Char.DOWNWARDS_ARROW_WITH_CORNER_LEFTWARDS.char())
+        str = util.String.to1LineString("test" + newline() + "hallo!")
     
         % tab; \t
         str = regexprep(sprintf("test\thallo!"), "\t", util.Char.RIGHTWARDS_ARROW_TO_BAR.char())
@@ -97,6 +98,19 @@ methods (Access = public) % doc Method Attributes
         end
         StringCustomDisplay.dispSuperClasses(classString);
     end
+    function res = plus(obj1, obj2)
+        % PLUS implementation for string concatination; if any of the objects obj1 or obj2 is a string than the result is
+        % the string concatinated with string(obj1 or obj2)
+        % This method can be called from overladed plus operators in implementing classes
+        %     res = plus@StringCustomDisplay(obj1, obj2);
+        if isstring(obj1)
+            res = obj1 + obj2.string();
+        elseif isstring(obj2)
+            res = obj1.string() + obj2;
+        else
+            res = builtin('plus', obj1, obj2);
+        end
+    end
 end
 
 %% >|•| protected methods
@@ -119,6 +133,8 @@ methods (Access = protected)
                         propString = class(propActual) + ".string() method returned a <missing> string!";
                     end
                     propList.(props{ii}) = propString;
+                % elseif isscalar(propActual) && isa(propActual, 'function_handle')
+                %    propList.(props{ii}) = func2str(propActual);
                 else
                     propList.(props{ii}) = propActual;
                 end
@@ -184,10 +200,14 @@ methods (Access = protected)
     function footerStrModified = getFooterModified(objs, variableName)
         % will extend the footer to show details and to edit class file
         footerStrModified = string(matlab.mixin.CustomDisplay.getDetailedFooter(objs));
-        if nargin > 1 && footerStrModified ~= ""
+        if footerStrModified ~= ""
             % datatip (hovering over variable name in matlab editor) should not display any ahref links
             footerStrModified = regexprep(footerStrModified, "\n$", "");
-            detailStr = "matlab:" + variableName + ".displayDetails()";
+            if nargin > 1
+                detailStr = "matlab:" + variableName + ".displayDetails()";
+            else
+                detailStr = "";
+            end
             classStr = class(objs);
             editStr = "matlab:edit('" + classStr + "')";
             docStr = "matlab:doc('" + classStr + "')";
