@@ -203,11 +203,6 @@ methods (Access = protected)
         if footerStrModified ~= ""
             % datatip (hovering over variable name in matlab editor) should not display any ahref links
             footerStrModified = regexprep(footerStrModified, "\n$", "");
-            if nargin > 1
-                detailStr = "matlab:" + variableName + ".displayDetails()";
-            else
-                detailStr = "";
-            end
             classStr = class(objs);
             editStr = "matlab:edit('" + classStr + "')";
             docStr = "matlab:doc('" + classStr + "')";
@@ -215,7 +210,10 @@ methods (Access = protected)
             supExpr = "<a href=['""]matlab:superclasses[^>]+>Superclasses</a>";
             supRep = "<a href=""" + supStr + """>Superclasses</a>";
             footerStrModified = regexprep(footerStrModified, supExpr, supRep);
-            footerStrModified = footerStrModified + ", <a href=""" + detailStr + """>show-details</a>";
+            if nargin > 1
+                detailStr = "matlab:" + variableName + ".displayDetails()";
+                footerStrModified = footerStrModified + ", <a href=""" + detailStr + """>show-details</a>";
+            end
             footerStrModified = footerStrModified + ", <a href=""" + editStr + """>edit-Class</a>";
             footerStrModified = footerStrModified + ", <a href=""" + docStr + """>documentation</a>";
             footerStrModified = footerStrModified + newline();
