@@ -146,9 +146,18 @@ methods (Static)
             elseif isa(propertyAccessor, 'function_handle')
                 prop = arrayfun(@(x) propertyAccessor(x), selected);
             end
-            [~,sortIdx] = ismember(comperator,prop);
+            %{
+                % Problem 1, das sortieren funktioniert in diesem fall nicht
+                prop = ["A","A","A", "B","B","B"];
+                comperator = ["B", "A"];
+                [a1,b1] = ismember(comperator, prop)
+                [a2,b2] = ismember(prop, comperator)
+            %}
+            [~,sortIdx] = ismember(comperator, prop);
             sortIdx(sortIdx==0) = [];
-            selected = selected(sortIdx);
+            if numel(sortIdx) == numel(selected)
+                selected = selected(sortIdx);
+            end
         end
     end
     function [selected, idx] = selectByPropIsNaN(objs, propertyAccessor, inverse)
