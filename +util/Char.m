@@ -1,52 +1,88 @@
 classdef Char < int32
-% enumeration of characters
-%% EXAMPLES
-%{
-    util.Char.GREEK_BETA_SYMBOL        
-    util.Char.GREEK_BETA_SYMBOL.toString
-    util.Char.valueOfNumber(8469)
-
-    util.Char.searchByRegex('zero')
-    
-    util.Char.checkEnumCharsDisplayable
-%}  
-%% VERSIONING
-%             Author: Andreas Justin
-%      Creation date: 2015-10-23
-%             Matlab: 8.6.0.267246 (R2015b)
-%  Required Products: -
+% enumeration of UTF-8 characters
 %
-%% REVISIONS
-% V1.0 | 2015-10-23 | Andreas Justin      | Ersterstellung
-% V1.1 | 2018-01-09 | Martin Lechner      | Spaces added
+%% DESCRIPTION
+% This class defines a lot of different UTF-8 characters. To be plattform (Windows CP1252, Unix UTF-8) compatible you should
+% use for all none standard ASCII symboles this enumeration class to add the correct characters.
+% E.g. use util.Char.GREEK_SMALL_LETTER_BETA.char() instead of typing the characters directly in Windows editor
 %
-% See also ftp://ftp.unicode.org/Public/UNIDATA/NamesList.txt
-
-%% --------------------------------------------------------------------------------------------
-%% >|•| HowTo:
+% >|â€¢| HowTo add new symbols:
 % goto: ftp://ftp.unicode.org/Public/UNIDATA/NamesList.txt
 % notepad++
-% • replace all with ""
+% â€¢ replace all with ""
 %     "^\t.*"
 %     ";.*"
 %     "\n\s\n"
 %     "^@.*"
-% • "\r" with "\n"
-% • "\n\n" with "\n"
-% • "(\w)[ -](\w)" with "$1_$2"
-% • "(^\w+)\t(.*)" with "$2    \(hex2dec\('$1'\)\)"
-% • plugin: "Code Alignment" align by
+% â€¢ "\r" with "\n"
+% â€¢ "\n\n" with "\n"
+% â€¢ "(\w)[ -](\w)" with "$1_$2"
+% â€¢ "(^\w+)\t(.*)" with "$2    \(hex2dec\('$1'\)\)"
+% â€¢ plugin: "Code Alignment" align by
 %     "\(hex2dec"
-%% >|•| Alternative
+%
+% >|â€¢| Alternative listings of all characters
 % http://www.fileformat.info/info/unicode/
 % http://www.utf8-chartable.de/
+%
+%% VERSIONING
+%             Author: Andreas Justin, SMO RS CP BG&P EN SSV TD-E
+%           Copyright (C) Siemens Mobility Austria GmbH, 2015 - 2020 All Rights Reserved
+%      Creation date: 2015-10-23
+%             Matlab: 9.7, (R2019b)
+%  Required Products: -
+%
+%% REVISONS
+% V1.0 | 2015-10-23 | Andreas Justin      | Ersterstellung
+% V1.1 | 2018-01-09 | Martin Lechner      | Spaces added
+% V1.2 | 2019-06-15 | Martin Lechner      | PER_MILLE_SIGN â€° and PER_TEN_THOUSAND_SIGN added
+% V1.3 | 2020-02-27 | Martin Lechner      | searchByRegex returns an array, stringChar implemented
+%
+% See also ftp://ftp.unicode.org/Public/UNIDATA/NamesList.txt
+%
+%% EXAMPLES
+%{
+
+% search a symbol in all defined UTF-8 characters of this enumeration class
+util.Char.searchByRegex('beta')
+
+% create the enumeration object for one of the search results
+util.Char.GREEK_SMALL_LETTER_BETA
+
+% use the character in text creation functions
+util.Char.GREEK_SMALL_LETTER_BETA.char()
+
+% prints all defined UTF-8 characters (display of all enumeration of this class)
+util.Char.checkEnumCharsDisplayable()
+% or
+util.Char.dispAll()
+
+
+% other examples
+util.Char.GREEK_BETA_SYMBOL        
+util.Char.GREEK_BETA_SYMBOL.toString
+
+util.Char.searchByRegex('zero')
+    
+%}  
+%% --------------------------------------------------------------------------------------------
 
 methods
     function s = toString(enum)
         s = enum.string;
     end
+    function list = search(enum, expr)
+        idx = util.regexStr(enum.toString(), expr, true);
+        list = enum(idx);
+    end
     function s = char(enum)
+        % returns this enum array as character array (all rows are interpreted as one char vector)
         s = builtin('char',enum);
+    end
+    function s = stringChar(enum)
+        % returns an array of strings where each enumeration is converted to the corresponding character
+        s = string(enum(:).char());
+        s = reshape(s, size(enum));
     end
     function disp(enum)
         for ii = 1:numel(enum)
@@ -55,29 +91,36 @@ methods
     end
 end
 methods (Static = true)
-    function searchByRegex(expr)
-        [m,s] = enumeration(mfilename('class'));
-        idx = util.regexStr(string(s),string(expr), true);
-        m_ = m(idx);
-        if ~isempty(m_)
-            fprintf('\n %i found with "%s"\n',numel(m_),expr);
-            for ii = 1:numel(m_)
-                fprintf('\t%s\t<\t(%s)\t\t%s\n',m_(ii), dec2hex(m_(ii)+0,4), m_(ii).toString)
+    function [members, names] = all()
+        [members, names] = enumeration(mfilename("class"));
+        names = string(names);
+    end
+    function m = searchByRegex(expr)
+        % returns the Char's found by the regular search expression 'expr'. If no chars are found the returned list is
+        % an empty (0x1) util.Char array
+        m = util.Char.all();
+        m = m.search(expr);
+        if nargout < 1
+            if ~isempty(m)
+                fprintf('\n %i found with "%s"\n',numel(m),expr);
+                for ii = 1:numel(m)
+                    fprintf('\t%s\t<\t(%s)\t\t%s\n',m(ii), dec2hex(m(ii)+0,4), m(ii).toString)
+                end
+            else
+                fprintf('\nnothing found with "%s"\n',expr);
             end
-        else
-            fprintf('\nnothing found with "%s"\n',expr);
         end
     end
     function dispAll()
         util.Char.checkEnumCharsDisplayable()
     end
     function checkEnumCharsDisplayable()
-        m = enumeration(mfilename('class'));
+        m = util.Char.all();
         fprintf('\n-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=')
         for ii = 1:numel(m)
             fprintf('\n\t%s\t<\t(%s)\t\t%s',m(ii), dec2hex(m(ii)+0,4), m(ii).toString);
         end
-        fprintf('\n-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=')
+        fprintf('\n-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=-~=\n')
     end
 end
 
@@ -257,6 +300,7 @@ enumeration
     PUNCTUATION_SPACE       (hex2dec('2008'))   % punctuation space (a little bit smaller than SPACE)
     THIN_SPACE              (hex2dec('2009'))   % thin space (a little bit smaller than PUNCTUATION_SPACE)
     HAIR_SPACE              (hex2dec('200A'))   % a hair space (praktisch nix)
+    NARROW_NO_BREAK_SPACE   (hex2dec('202F'))   % thin space acc. ISO-NORM 31-0 for thousand separator
     
     BULLET                  (hex2dec('2022'))
     TRIANGULAR_BULLET       (hex2dec('2023'))
@@ -303,6 +347,9 @@ enumeration
     SUBSCRIPT_LEFT_PARENTHESIS          (hex2dec('208D'))
     SUBSCRIPT_RIGHT_PARENTHESIS         (hex2dec('208E'))
 
+    PER_MILLE_SIGN                      (hex2dec('2030'))        % â€°, Alt+0137 = permille, per thousand
+    PER_TEN_THOUSAND_SIGN               (hex2dec('2031'))        % '?', PER TEN THOUSAND SIGN, * percent of a percent, rarely used
+    
     FOR_ALL                                                           (hex2dec('2200'))
     COMPLEMENT                                                        (hex2dec('2201'))
     PARTIAL_DIFFERENTIAL                                              (hex2dec('2202'))
@@ -676,6 +723,10 @@ enumeration
     GREEK_CAPITAL_DOTTED_LUNATE_SIGMA_SYMBOL               (hex2dec('03FE'))
     GREEK_CAPITAL_REVERSED_DOTTED_LUNATE_SIGMA_SYMBOL      (hex2dec('03FF'))
 
+    % General Punctuation (0x2000 ... 0x206F)
+    ONE_DOT_LEADER                                         (0x2024)
+    TWO_DOT_LEADER                                         (0x2025)
+    HORIZONTAL_ELLIPSIS                                    (0x2026)
 
     ACCOUNT_OF                                             (hex2dec('2100'))
     ADDRESSED_TO_THE_SUBJECT                               (hex2dec('2101'))
@@ -1266,6 +1317,5 @@ enumeration
     UP_POINTING_TRIANGLE_WITH_LEFT_HALF_BLACK                (hex2dec('25ED'))
     UP_POINTING_TRIANGLE_WITH_RIGHT_HALF_BLACK               (hex2dec('25EE'))
     LARGE_CIRCLE                                             (hex2dec('25EF'))
-end
-end
-
+end     % enumeration
+end     % classdef
