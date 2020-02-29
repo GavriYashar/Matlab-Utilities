@@ -8,11 +8,28 @@ classdef (HandleCompatible) StringCustomDisplay < matlab.mixin.CustomDisplay
 % With displayDetails() you can see the object details like the Matlab default method details returns.
 %
 % To see the Matlab's default display use obj.details or details(obj)!
+% 
+% For the implementation to support heterogenouse arrays you must define the following methods as sealed in the
+% hierarchy root of the heterogeneous array:
+%   # string
+%   # generateDisplayStringForObject
+%   # plus  (so that obj + "adsfa" is working, otherwise in the case of heterogenouse arrays an error will be thrown)
+% for Details see "IMPLEMENTATION EXAMPLES" further down in the description
+%
+% If you don't add specific functions to the objects (see file.Filename or grafik.Color) it is enough to redefine this
+% method an call the function of this StringCustomDisplay.
+% Example implementation (see analysis.statistic.BinsAbstract):
+% methods(Sealed, Access=protected)
+%     function strs = generateDisplayStringForObject(obj, variableName, isDatatipinfo)
+%         strs = generateDisplayStringForObject@StringCustomDisplay(obj, variableName, isDatatipinfo);
+%     end
+% end
 %
 %% VERSIONING
-%             Author: Martin Lechner
+%             Author: Martin Lechner, SMO RS CP BG&P EN SSV TD-E
+%           Copyright (C) Siemens Mobility Austria GmbH, 2017 - 2020 All Rights Reserved
 %      Creation date: 2017-09-16
-%             Matlab: 9.3, (R2017b)
+%             Matlab: 9.7, (R2019b)
 %  Required Products: -
 %
 %% REVISIONS
@@ -24,10 +41,15 @@ classdef (HandleCompatible) StringCustomDisplay < matlab.mixin.CustomDisplay
 % V2.1 | 2019-01-10 | Andreas Justin      | no error is thrown on missing string, instead link to edit the string method
 %                                           directly
 % V2.2 | 2019-06-04 | Martin Lechner      | plus operator implemented for strings
+% V2.3 | 2019-12-08 | Martin Lechner      | using of util.String.func2str for function handles
+% V3.0 | 2020-02-05 | Martin Lechner      | all supporting functions except generateDisplayStringForObject are now
+%                                           sealed to support the implementation for heterogenouse arrays (issue #69)
+% V3.1 | 2020-02-06 | Martin Lechner      | plus method can't be sealed, otherwise no class can implement their own
+%                                           plus operator (used in util.StringHTML)
 %
 % See also matlab.mixin.CustomDisplay, goodOldSP.messstelle.Klass, ...
 %
-%% EXAMPLES
+%% IMPLEMENTATION EXAMPLES
 %{
 %% Example implementation of string in GrenzW
     function str = string(objs)
@@ -52,8 +74,30 @@ methods (Access = protected)
         strs = strs + suffix;
     end
 end
-%}
 
+%% Example to support heterogenouse arrays (must be Implemented in hierarchy root of heterogeneous array)
+% -------------------------------------------------------------------------------------------------------
+methods(Sealed, Access = protected)
+    function strs = generateDisplayStringForObject(obj, variableName, isDatatipinfo)
+        strs = generateDisplayStringForObject@StringCustomDisplay(obj, variableName, isDatatipinfo);
+    end
+end
+
+methods (Sealed)
+    function str = string(objs)
+        % returns a string representation of the objs
+        str = strings(size(objs));
+        for i = 1 : numel(objs)
+            str(i) = objs(i).stringImpl();    % this method must be implemented in all subclasses for scalar objects
+        end
+    end
+    function res = plus(obj1, obj2)
+        % PLUS implementation for string concatination; if any of the objects obj1 or obj2 is a string than the result is
+        % the string concatinated with string(obj1 or obj2)
+        res = plus@StringCustomDisplay(obj1, obj2);
+    end
+end
+%}
 %% --------------------------------------------------------------------------------------------
 
 properties (Constant)
@@ -82,7 +126,22 @@ methods (Access = public) % doc Method Attributes
         end
         str = char(obj.string());
     end
-    
+    function res = plus(obj1, obj2)
+        % PLUS implementation for string concatination; if any of the objects obj1 or obj2 is a string than the result is
+        % the string concatinated with string(obj1 or obj2)
+        % This method can be called from overladed plus operators in implementing classes
+        %     res = plus@StringCustomDisplay(obj1, obj2);
+        if isstring(obj1)
+            res = obj1 + obj2.string();
+        elseif isstring(obj2)
+            res = obj1.string() + obj2;
+        else
+            res = builtin('plus', obj1, obj2);
+        end
+    end
+end
+%% --|••| Sealed, Public Methods
+methods (Sealed, Access = public) % doc Method Attributes    
     function displayDetails(obj)
         % displays variable as Matlab does.
         % scalar - property: value
@@ -98,23 +157,27 @@ methods (Access = public) % doc Method Attributes
         end
         StringCustomDisplay.dispSuperClasses(classString);
     end
-    function res = plus(obj1, obj2)
-        % PLUS implementation for string concatination; if any of the objects obj1 or obj2 is a string than the result is
-        % the string concatinated with string(obj1 or obj2)
-        % This method can be called from overladed plus operators in implementing classes
-        %     res = plus@StringCustomDisplay(obj1, obj2);
-        if isstring(obj1)
-            res = obj1 + obj2.string();
-        elseif isstring(obj2)
-            res = obj1.string() + obj2;
-        else
-            res = builtin('plus', obj1, obj2);
+end
+
+%% --|••| protected methods
+methods (Access = protected)
+    function strs = generateDisplayStringForObject(objs, variableName, isDatatipinfo)
+        % Generates display strings for objects. Each entry will have a link prefixed to inspect the variable.
+        % Will exclude this links in datatip (mouse hovering over variable Editor/Debugger>Display>Enable datatips in ...).
+        strs = objs.string();
+        linkedStrs = string(blanks(4));
+        suffix = "";
+        if ~isDatatipinfo
+            % datatip (hovering over variable name in matlab editor) should not display any ahref links
+            arrow = util.Char.RIGHTWARDS_ARROW_TO_BAR.char();
+            linkedStrs = "<a href=""matlab:openvar('" + variableName + "(" + (1:numel(objs)) + ")')""> " + arrow +"</a>  ";
         end
+        strs = util.String.generateIndexString(objs) + linkedStrs(:) + strs(:) + suffix;
     end
 end
 
-%% >|•| protected methods
-methods (Access = protected)
+%% >|•| Sealed, protected methods
+methods (Sealed, Access = protected)
     function propgrp = getPropertyGroups(obj)
         if ~isscalar(obj)
             propgrp = getPropertyGroups@matlab.mixin.CustomDisplay(obj);
@@ -133,8 +196,8 @@ methods (Access = protected)
                         propString = class(propActual) + ".string() method returned a <missing> string!";
                     end
                     propList.(props{ii}) = propString;
-                % elseif isscalar(propActual) && isa(propActual, 'function_handle')
-                %    propList.(props{ii}) = func2str(propActual);
+                elseif isscalar(propActual) && isa(propActual, 'function_handle')
+                    propList.(props{ii}) = util.String.func2str(propActual);
                 else
                     propList.(props{ii}) = propActual;
                 end
@@ -158,8 +221,12 @@ methods (Access = protected)
     end
 end % protected methods
 
-%% >|•| private methods
-methods (Access = protected)
+%% >|•| Sealed, private methods
+methods (Sealed, Access = protected)
+    function headerStr = getHeader(objs)
+        % define as sealed
+        headerStr = getHeader@matlab.mixin.CustomDisplay(objs);
+    end
     function displayNonScalarObjectDA(objs, variableName)
         fprintf(objs.getHeaderModified());
         
@@ -175,19 +242,6 @@ methods (Access = protected)
         end
         fprintf("%s\n", strs)
         fprintf(footerStrModified);
-    end
-    function strs = generateDisplayStringForObject(objs, variableName, isDatatipinfo)
-        % Generates display strings for objects. Each entry will have a link prefixed to inspect the variable.
-        % Will exclude this links in datatip (mouse hovering over variable Editor/Debugger>Display>Enable datatips in ...).
-        strs = objs.string();
-        linkedStrs = string(blanks(4));
-        suffix = "";
-        if ~isDatatipinfo
-            % datatip (hovering over variable name in matlab editor) should not display any ahref links
-            arrow = util.Char.RIGHTWARDS_ARROW_TO_BAR.char();
-            linkedStrs = "<a href=""matlab:openvar('" + variableName + "(" + (1:numel(objs))' + ")')""> " + arrow +"</a>  ";
-        end
-        strs = util.String.generateIndexString(objs) + linkedStrs + strs(:) + suffix;
     end
     function headerStrModified = getHeaderModified(objs)
         % will replace the ClassName in headerStr with fully qualified name, and removes "with properties"
