@@ -26,8 +26,7 @@ classdef Char < int32
 % http://www.utf8-chartable.de/
 %
 %% VERSIONING
-%             Author: Andreas Justin, SMO RS CP BG&P EN SSV TD-E
-%           Copyright (C) Siemens Mobility Austria GmbH, 2015 - 2020 All Rights Reserved
+%             Author: Andreas Justin
 %      Creation date: 2015-10-23
 %             Matlab: 9.7, (R2019b)
 %  Required Products: -
