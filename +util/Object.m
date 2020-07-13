@@ -50,6 +50,8 @@ classdef Object
 % V1.1 | 2018-01-17 | Andreas Justin      | searchProps accepts method names
 %                                            obj.('methodName') does work
 % V1.2 | 2018-06-14 | Andreas Justin      | added numerous selectBy Methods
+% V2.0 | 2020-07-13 | Andreas Justin      | Tables supported
+%
 % See also mixin.SelectBy
 
 methods (Static)
@@ -101,13 +103,24 @@ methods (Static)
         %}
         narginchk(3,4)
         if nargin < 4; inverse = false; end
-        if isstring(propertyAccessor) || ischar(propertyAccessor)
-            idx = arrayfun(@(x) comperator(x.(propertyAccessor)), objs);
-        elseif isa(propertyAccessor, 'function_handle')
-            idx = arrayfun(@(x) comperator(propertyAccessor(x)), objs);
+        if istable(objs)
+            if isstring(propertyAccessor) || ischar(propertyAccessor)
+                idx = arrayfun(@(x) comperator(x), objs.(propertyAccessor));
+            elseif isa(propertyAccessor, 'function_handle')
+                idx = arrayfun(@(x) comperator(x), propertyAccessor(objs));
+            end
+            if inverse; idx = ~idx; end
+            selected = objs(idx,:);
+        else
+            % struct, or Objects
+            if isstring(propertyAccessor) || ischar(propertyAccessor)
+                idx = arrayfun(@(x) comperator(x.(propertyAccessor)), objs);
+            elseif isa(propertyAccessor, 'function_handle')
+                idx = arrayfun(@(x) comperator(propertyAccessor(x)), objs);
+            end
+            if inverse; idx = ~idx; end
+            selected = objs(idx);
         end
-        if inverse; idx = ~idx; end
-        selected = objs(idx);
     end
     function [selected, idx] = selectByPropRegexp(objs, propertyAccessor, expression, inverse)
         narginchk(3,4)
