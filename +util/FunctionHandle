@@ -1,0 +1,214 @@
+classdef FunctionHandle
+% Function handle utils, if and switch etc
+%
+%% REVISIONS
+% V1.0 | 2021-02-26 | Andreas Justin      | first released version
+%
+% See also
+%
+%% EXAMPLES
+%{
+
+%}
+%% --------------------------------------------------------------------------------------------
+properties (Constant, Access = private)
+    suffixForFieldInWorkspace = "_____CLASS_FHUTILS"
+end
+methods (Static = true)
+    function fh = json2func(json)
+        S = jsondecode(json);
+        fh = util.FunctionHandle.structToFunctionHandle(S);
+    end
+    function json = func2json(fh)
+        %{
+            fsOut = [];
+            fs_GPs = 10;
+            tWin = 1./fs_GPs;
+            schrittWeite = tWin;
+            winFunction = @median;
+            indexOut = 1;
+            interp2SigFs = false;
+            sfh_red = @(x,nChOut) Signal_reduce2WindowFunction(x,nChOut,tWin,schrittWeite,winFunction,indexOut,interp2SigFs);
+            fh_smth = @(x) smoothdata(x,'rloess',180);
+            sfh_smth = @(x,nChOut) Signal_calc_Function(sfh_red(x,nChOut),nChOut,fh_smth,fs_GPs);
+            fsOut = 300;
+            sfh = @(x,nChOut) Signal_calc_Function(sfh_smth(sfh_red(x,nChOut),nChOut),nChOut,@(x) x,fsOut);
+        
+            json = util.FunctionHandle.func2json(sfh)
+            fh = util.FunctionHandle.json2func(json);
+        
+            signal = dap.signal.Create.sineRandom();
+            signalOut1 = sfh(signal, 1);
+            signalOut2 = fh(signal, 1);
+            figureDA, line([signalOut1, signalOut2])
+        
+            frml = formula.CustomMatlabFh("asdf", @(data) data(:,1) + data(:,2))
+            json = util.FunctionHandle.func2json(frml.getSignalFunctionHandle())
+        %}
+        arguments
+            fh(1,1) function_handle
+        end
+        S = util.FunctionHandle.functionHandleToStructForJson(fh);
+        json = jsonencode(S);
+        json = util.Regexp.prettifyJson(json);
+    end
+    
+    function out = swtch(in, comperator, otherwse, varargin)
+        % switch(in)
+        %   case comperator(in, varargin{1})
+        %      do varargin{2}
+        %   case comperator(in, varargin{1}) etc..
+        %{
+           in = "asdf";
+           comperator = @(x,y) strcmp(x,y);
+           otherwse = @() "otherwise";
+           util.FunctionHandle.swtch(in, comperator, otherwse)
+
+           cases = {"notASDF",@() "notASDF", "asdf", @() "wasASDF"};
+           util.FunctionHandle.swtch(in, comperator, otherwse, cases{:})
+        %}
+        for ii = 1:2:numel(varargin)
+            if ~comperator(in, varargin{ii})
+                continue;
+            end
+            out = feval(varargin{ii+1});
+            return
+        end
+        out = feval(otherwse);
+    end
+
+    function out = iff(CONDITION,TRUE,FALSE)
+        % functional if condition input form are function handles and
+        % executes according to the condition
+        if CONDITION
+            out = feval(TRUE);
+        else
+            out = feval(FALSE);
+        end
+    end
+
+    function out = getVarByIndex(indexIn, varAsCell)
+        % get a Variable from a List of Variables by Index
+        % Bsp.: util.FunctionHandle.getVarByIndex(@()listdlg('ListString',{'PvD','FmqD','SsD','SqD','SvD'}),{'PvD','FmqD','SsD','SqD','SvD'})
+        out = varAsCell{feval(indexIn)};
+    end
+
+end
+
+methods (Static, Access = private)
+    function S = structToStructForFunctionHandle(S)
+        % this method will prepare the Struct to create a new function handle
+        % will convert various values from worksapce of a function
+        fields = string(fieldnames(S));
+        for ff = 1:numel(fields)
+            fieldName = fields(ff);
+            if fieldName.endsWith(util.FunctionHandle.suffixForFieldInWorkspace)
+                continue
+            end
+            fieldValue = S.(fieldName);
+            
+            if isstruct(fieldValue)
+                fieldNameOfValue = string(fieldnames(fieldValue));
+                isFunctionHandle = all(ismember(["type", "function", "workspace"], fieldNameOfValue));
+                isFunctionHandleimple = all(ismember(["type", "function"], fieldNameOfValue)) && fieldValue.type == "simple";
+                if isFunctionHandle || isFunctionHandleimple
+                    S.(fieldName) = util.FunctionHandle.structToFunctionHandle(fieldValue);
+                else
+                    error("wos was i: #2")
+                end
+            else
+                switch S.(fieldName + util.FunctionHandle.suffixForFieldInWorkspace)
+                    case "double"
+                        S.(fieldName) = str2num(fieldValue);
+                    case "char"
+                        S.(fieldName) = char(fieldValue);
+                    case "string"
+                        S.(fieldName) = string(fieldValue);
+                    case "logical"
+                        S.(fieldName) = fieldValue == "true";
+                    otherwise
+                        error("wos was i: #3")
+                end
+            end
+        end
+    end
+    function fh = structToFunctionHandle(S_____)
+        % will convert a function struct to a new function handle
+        switch S_____.type
+            case {'simple', 'classsimple'}       % e.g. @mean
+                fh = str2func(S_____.function);
+            case {'anonymous', 'nested'}        % e.g. @(x) x or a nested function
+                ws_____ = S_____.workspace;
+                ws_____ = util.FunctionHandle.structToStructForFunctionHandle(ws_____);
+                util.FunctionHandle.createFunction(S_____.function, ws_____);
+            case 'scopedfunction'   % a local function in an M-file
+                error("wos was i: #1")
+                % str = S.parentage{1} + "@" + S.parentage{2};
+        end
+        
+    end
+    function createFunction(fhStr, fhWorkspace)
+        % this method will create a new function_handle in the caller of this function using funciton string and the
+        % % workspace struct
+        fields = string(fieldnames(fhWorkspace));
+        fields(fields.endsWith(util.FunctionHandle.suffixForFieldInWorkspace)) = [];
+        
+        % alternatevily use save and load
+        %{
+           save("temp.mat", "-struct","S")
+           clear
+           load("temp.mat") % will create variables in workspace
+        %}
+        for ii = 1:numel(fields)
+            cmd = fields(ii) + " = ws_____.('" + fields(ii) + "');";
+            evalin("caller", cmd);
+        end
+        cmd = "fh = " + fhStr + ";";
+        evalin("caller", cmd)
+    end
+    function S = structToStructForJson(S)
+        % will convert substructs of a function_handle to a valid struct ready for conversion to a json string
+        fields = string(fieldnames(S));
+        for ff = 1:numel(fields)
+            fieldName = fields(ff);
+            fieldValue = S.(fieldName);
+            
+            if isa(fieldValue, "function_handle")
+                fieldValue = util.FunctionHandle.functionHandleToStructForJson(fieldValue);
+                S.(fieldName) = fieldValue;
+            else
+                if isstruct(fieldValue)
+                    fieldValue = util.FunctionHandle.structToStructForJson(fieldValue);
+                    S.(fieldName) = fieldValue;
+                else
+                    S.(fieldName) = stringMissing(fieldValue);
+                    S.(fieldName + util.FunctionHandle.suffixForFieldInWorkspace) = class(fieldValue);
+                end
+            end
+        end
+    end
+    function S = functionHandleToStructForJson(fh)
+        % will convert a function handle to a struct ready to be converted to a json string
+        arguments
+            fh(1,1) function_handle
+        end
+        S = functions(fh);
+        switch S.type
+            case {'simple', 'classsimple'}       % e.g. @mean
+                S.function = "@" + S.function;
+            case {'anonymous', 'nested'}        % e.g. @(x) x or a nested function
+                workspaces = S.workspace;
+                for ii = 1:numel(workspaces)
+                    workspace = workspaces{ii};
+                    workspace = util.FunctionHandle.structToStructForJson(workspace);
+                    workspaces{ii} = workspace;
+                end
+                S.workspace = workspaces;
+            case 'scopedfunction'   % a local function in an M-file
+                error("wos was i")
+                % str = S.parentage{1} + "@" + S.parentage{2};
+        end
+    end
+end
+end
+
